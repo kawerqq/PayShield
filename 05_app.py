@@ -17,18 +17,19 @@ import csv
 import hashlib
 import json
 import os
-import sys
+import sys 
+import re
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 RECIPIENTS_CSV = os.path.join(BASE_DIR, "01_данные", "recipients.csv")
-OUT_CSV = os.path.join(BASE_DIR, "payments_out.csv")
+OUT_CSV = os.path.join(BASE_DIR, "payments.csv")
 
 
 def load_active_recipients():
     """Прочитать recipients.csv, вернуть set() активных ID."""
     active = set()
     try:
-        with open(RECIPIENTS_CSV, encoding="utf-8") as f:
+        with open(RECIPIENTS_CSV, encoding="windows-1251") as f:
             for row in csv.DictReader(f):
                 if row.get("status") == "ACTIVE":
                     active.add(row["recipient_id"])
@@ -48,6 +49,17 @@ def validate(payload, active_recipients):
         amt = float(payload["amount"])
         if amt <= 0 or amt > 1_000_000:
             errors.append(("amount", "AMOUNT_OUT_OF_RANGE"))
+    if "order_id" in payload:
+        if not re.fullmatch(r"^ord_[0-9]{4}$", payload["order_id"]):
+            errors.append(("order_id", "INVALID_FORMAT"))
+    if "currency" in payload:
+        if payload["currency"] != "RUB":
+            errors.append(("currency", "UNSUPPORTED_CURRENCY"))
+    if "recepient" in payload:
+        if payload["recepient"] not in active_recipients:
+            print('заебок')
+
+
     # TODO: V-3 (order_id regex), V-4 (currency), V-5 (recipient),
     #       V-6 (purpose), V-7 (2 знака), V-8 (дубль), V-9 (idempotency)
     return errors
@@ -65,12 +77,12 @@ def emulate_gateway(order_id):
 
 def main():
     if len(sys.argv) < 2:
-        print("Использование: python 04_прототип.py payment.json")
+        print("Использование: python3 05_app.py payment.json")
         sys.exit(1)
-
+    
     with open(sys.argv[1], encoding="utf-8") as f:
         payload = json.load(f)
-
+    
     active = load_active_recipients()
     errors = validate(payload, active)
 
