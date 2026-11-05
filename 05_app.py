@@ -70,8 +70,13 @@ def emulate_gateway(order_id):
     # ОБРАЗЕЦ — 0..6 = SUCCESS
     if h <= 6:
         return "SUCCESS", None
+    elif h == 7:
+        return "INSUFFICIENT_FUNDS", "INSUFFICIENT_FUNDS"
+    elif h == 8:
+        return "CARD_DECLINED", "CARD_DECLINED"
+    else:
+        return "TIMEOUT", "GATEWAY_TIMEOUT"
     # TODO: 7 = INSUFFICIENT_FUNDS, 8 = CARD_DECLINED, 9 = TIMEOUT
-    return "UNKNOWN", "NOT_IMPLEMENTED"
 
 
 def main():
