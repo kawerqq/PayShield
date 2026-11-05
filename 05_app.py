@@ -55,9 +55,8 @@ def validate(payload, active_recipients):
     if "currency" in payload:
         if payload["currency"] != "RUB":
             errors.append(("currency", "UNSUPPORTED_CURRENCY"))
-    if "recepient" in payload:
-        if payload["recepient"] not in active_recipients:
-            print('заебок')
+#    if "recepient" in payload:
+#        if payload["recepient"] not in active_recipients:
 
 
     # TODO: V-3 (order_id regex), V-4 (currency), V-5 (recipient),
