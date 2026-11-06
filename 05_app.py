@@ -19,6 +19,7 @@ import json
 import os
 import sys 
 import re
+from datetime import datetime, timezone
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 RECIPIENTS_CSV = os.path.join(BASE_DIR, "01_данные", "recipients.csv")
@@ -60,28 +61,28 @@ def validate(payload, active_recipients):
             errors.append((field, "VALIDATION_ERROR"))
     
     if "amount" in payload:
-        amt = float(payload["amount"])
-        if amt <= 0 or amt > 1_000_000:
-            errors.append(("amount", "AMOUNT_OUT_OF_RANGE"))
+        try:
+            amt = float(payload["amount"])
+        except (TypeError, ValueError):
+            errors.append(("amount", "VALIDATION_ERROR"))
+        else:
+            if amt <= 0 or amt > 1_000_000:
+                errors.append(("amount", "AMOUNT_OUT_OF_RANGE"))
+            if not re.fullmatch(r"\d+(?:\.\d{1,2})?", str(payload["amount"])):
+                errors.append(("amount", "INVALID_AMOUNT_PRECISION"))
     if "order_id" in payload:
         if not re.fullmatch(r"^ord_[0-9]{4}$", payload["order_id"]):
             errors.append(("order_id", "INVALID_FORMAT"))
     if "currency" in payload:
         if payload["currency"] != "RUB":
             errors.append(("currency", "UNSUPPORTED_CURRENCY"))
-<<<<<<< Updated upstream
-#    if "recepient" in payload:
-#        if payload["recepient"] not in active_recipients:
-
-=======
     if "recipient" in payload:
         if payload["recipient"] not in active_recipients:
             errors.append(("recipient", "RECIPIENT_NOT_FOUND"))
     if "purpose" in payload:
-        if payload["payload"] > 200:
+        purpose = str(payload["purpose"])
+        if len(purpose) > 200 or re.search(r"\d{13,19}", purpose):
             errors.append(("purpose", "INVALID_PURPOSE"))
-    
->>>>>>> Stashed changes
 
     # TODO: V-3 (order_id regex), V-4 (currency), V-5 (recipient),
     #       V-6 (purpose), V-7 (2 знака), V-8 (дубль), V-9 (idempotency)
@@ -102,8 +103,25 @@ def emulate_gateway(order_id):
         return "TIMEOUT", "GATEWAY_TIMEOUT"
     # TODO: 7 = INSUFFICIENT_FUNDS, 8 = CARD_DECLINED, 9 = TIMEOUT
 
+def load_existing_payments():
+    """Прочитать ранее сохранённые платежи из payments_out.csv."""
+    if not os.path.exists(OUT_CSV):
+        return []
+
+    with open(OUT_CSV, "r", newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        return list(reader)
+    
 def append_payment(payment):
     file_is_empty = not os.path.exists(OUT_CSV) or os.path.getsize(OUT_CSV) == 0
+
+    # Разделить новую строку с предыдущей записью, даже если файл не оканчивался переводом строки.
+    if not file_is_empty:
+        with open(OUT_CSV, "rb+") as f:
+            f.seek(-1, os.SEEK_END)
+            if f.read(1) not in (b"\n", b"\r"):
+                f.seek(0, os.SEEK_END)
+                f.write(b"\n")
 
     with open(OUT_CSV, "a", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
@@ -138,10 +156,31 @@ def main():
         payment_status = "PENDING"
     else:
         payment_status = status
+
+    payment_id = "pay_demo_" + payload["order_id"][-4:]
+    created_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+    payment = {
+        "payment_id": payment_id,
+        "order_id": payload["order_id"],
+        "recipient": payload["recipient"],
+        "purpose": payload["purpose"],
+        "amount": payload["amount"],
+        "currency": payload["currency"],
+        "status": payment_status,
+        "error_code": error_code or "",
+        "idempotency_key": payload.get("idempotency_key", ""),
+        "created_at": created_at,
+        "confirmed_at": "",
+        "correlation_id": "",
+    }
+
+    append_payment(payment)
+
     
     print(json.dumps({
-        "payment_id": "pay_demo_" + payload["order_id"][-4:],
-        "status": status,
+        "payment_id": payment_id,
+        "status": payment_status,
         "error_code": error_code,
     }, ensure_ascii=False, indent=2))
 

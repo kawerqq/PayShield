@@ -1,6 +1,6 @@
 {
-    "order_id": "ord_1013",
-    "recipient": "dr_lebedeva",
+    "order_id": "ord_1000",
+    "recipient": "dr_ivanov",
     "purpose": "Приём терапевта",
     "amount": "2500.00",
     "currency": "RUB"

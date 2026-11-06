@@ -1,1 +1,6 @@
 payment_id,order_id,recipient,purpose,amount,currency,status,error_code,idempotency_key,created_at,confirmed_at,correlation_id
+pay_demo_1013,ord_1013,dr_ivanov,Приём терапевта,2500.00,RUB,CARD_DECLINED,CARD_DECLINED,,2026-11-06T17:11:47+00:00,,
+
+
+pay_demo_1000,ord_1000,dr_ivanov,Приём терапевта,2500.00,RUB,SUCCESS,,,2026-11-06T17:13:10+00:00,,
+pay_demo_1000,ord_1000,dr_ivanov,Приём терапевта,2500.00,RUB,SUCCESS,,,2026-11-06T17:29:47+00:00,,
