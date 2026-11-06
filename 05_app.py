@@ -121,6 +121,20 @@ def load_existing_payments():
     with open(OUT_CSV, "r", newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         return list(reader)
+
+def check_idempotency(payload, existing_payments):
+    """Найти ранее обработанный запрос по Idempotency-Key."""
+
+    idempotency_key = payload.get("idempotency_key")
+
+    if not idempotency_key:
+        return None
+
+    for existing in existing_payments:
+        if existing.get("idempotency_key") == idempotency_key:
+            return existing
+
+    return None
     
 def append_payment(payment):
     file_is_empty = not os.path.exists(OUT_CSV) or os.path.getsize(OUT_CSV) == 0
@@ -152,7 +166,8 @@ def main():
     active = load_active_recipients()
     existing_payments = load_existing_payments()
     errors, duplicate_payment = validate(payload, active, existing_payments)
-
+    idempotent_payment = check_idempotency(payload, existing_payments)
+    
     if errors:
         print(json.dumps({
             "status": "ERROR",
@@ -160,6 +175,16 @@ def main():
             "errors": [{"field": f, "code": c} for f, c in errors],
         }, ensure_ascii=False, indent=2))
         sys.exit(2)
+
+    if idempotent_payment is not None:
+        print(json.dumps({
+            "payment_id": idempotent_payment["payment_id"],
+            "status": idempotent_payment["status"],
+            "error_code": "DUPLICATE_REQUEST",
+            "http_status": 200,
+            "payment": idempotent_payment,
+        }, ensure_ascii=False, indent=2))
+        sys.exit(0)
 
     if duplicate_payment is not None:
         print(json.dumps({
@@ -202,8 +227,10 @@ def main():
         "payment_id": payment_id,
         "status": payment_status,
         "error_code": error_code,
+        "http_status": 200,
+        "payment": payment,
     }, ensure_ascii=False, indent=2))
-
+    
     sys.exit(0 if status == "SUCCESS" else (3 if status == "TIMEOUT" else 1))
 
 
