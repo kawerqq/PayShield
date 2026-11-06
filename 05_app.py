@@ -58,6 +58,7 @@ def validate(payload, active_recipients):
     for field in ["order_id", "recipient", "purpose", "amount", "currency"]:
         if not payload.get(field):
             errors.append((field, "VALIDATION_ERROR"))
+    
     if "amount" in payload:
         amt = float(payload["amount"])
         if amt <= 0 or amt > 1_000_000:
@@ -68,9 +69,19 @@ def validate(payload, active_recipients):
     if "currency" in payload:
         if payload["currency"] != "RUB":
             errors.append(("currency", "UNSUPPORTED_CURRENCY"))
+<<<<<<< Updated upstream
 #    if "recepient" in payload:
 #        if payload["recepient"] not in active_recipients:
 
+=======
+    if "recipient" in payload:
+        if payload["recipient"] not in active_recipients:
+            errors.append(("recipient", "RECIPIENT_NOT_FOUND"))
+    if "purpose" in payload:
+        if payload["payload"] > 200:
+            errors.append(("purpose", "INVALID_PURPOSE"))
+    
+>>>>>>> Stashed changes
 
     # TODO: V-3 (order_id regex), V-4 (currency), V-5 (recipient),
     #       V-6 (purpose), V-7 (2 знака), V-8 (дубль), V-9 (idempotency)
