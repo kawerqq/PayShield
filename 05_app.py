@@ -22,8 +22,21 @@ import re
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 RECIPIENTS_CSV = os.path.join(BASE_DIR, "01_данные", "recipients.csv")
-OUT_CSV = os.path.join(BASE_DIR, "payments.csv")
-
+OUT_CSV = os.path.join(BASE_DIR, "payments_out.csv")
+FIELDNAMES = [
+    "payment_id",
+    "order_id",
+    "recipient",
+    "purpose",
+    "amount",
+    "currency",
+    "status",
+    "error_code",
+    "idempotency_key",
+    "created_at",
+    "confirmed_at",
+    "correlation_id"
+]
 
 def load_active_recipients():
     """Прочитать recipients.csv, вернуть set() активных ID."""
@@ -78,7 +91,17 @@ def emulate_gateway(order_id):
         return "TIMEOUT", "GATEWAY_TIMEOUT"
     # TODO: 7 = INSUFFICIENT_FUNDS, 8 = CARD_DECLINED, 9 = TIMEOUT
 
+def append_payment(payment):
+    file_is_empty = not os.path.exists(OUT_CSV) or os.path.getsize(OUT_CSV) == 0
 
+    with open(OUT_CSV, "a", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
+
+        if file_is_empty:
+            writer.writeheader()
+
+        writer.writerow(payment)
+        
 def main():
     if len(sys.argv) < 2:
         print("Использование: python3 05_app.py payment.json")
@@ -99,6 +122,12 @@ def main():
         sys.exit(2)
 
     status, error_code = emulate_gateway(payload["order_id"])
+    
+    if status == "TIMEOUT":
+        payment_status = "PENDING"
+    else:
+        payment_status = status
+    
     print(json.dumps({
         "payment_id": "pay_demo_" + payload["order_id"][-4:],
         "status": status,
