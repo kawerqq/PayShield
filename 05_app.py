@@ -52,7 +52,7 @@ def load_active_recipients():
     return active
 
 
-def validate(payload, active_recipients):
+def validate(payload, active_recipients, existing_payments):
     """TODO: реализовать V-3…V-9. Вернуть [(field, code), ...]."""
     errors = []
     # ОБРАЗЕЦ — V-1, V-2
@@ -84,9 +84,19 @@ def validate(payload, active_recipients):
         if len(purpose) > 200 or re.search(r"\d{13,19}", purpose):
             errors.append(("purpose", "INVALID_PURPOSE"))
 
+    duplicate_payment = None
+
+    for existing in existing_payments:
+        if (
+            existing.get("order_id") == payload.get("order_id")
+            and existing.get("recipient") == payload.get("recipient")
+        ):
+            duplicate_payment = existing
+            break
+
     # TODO: V-3 (order_id regex), V-4 (currency), V-5 (recipient),
     #       V-6 (purpose), V-7 (2 знака), V-8 (дубль), V-9 (idempotency)
-    return errors
+    return errors, duplicate_payment
 
 
 def emulate_gateway(order_id):
@@ -140,7 +150,8 @@ def main():
         payload = json.load(f)
     
     active = load_active_recipients()
-    errors = validate(payload, active)
+    existing_payments = load_existing_payments()
+    errors, duplicate_payment = validate(payload, active, existing_payments)
 
     if errors:
         print(json.dumps({
@@ -149,6 +160,15 @@ def main():
             "errors": [{"field": f, "code": c} for f, c in errors],
         }, ensure_ascii=False, indent=2))
         sys.exit(2)
+
+    if duplicate_payment is not None:
+        print(json.dumps({
+            "status": "ERROR",
+            "error_code": "DUPLICATE_ORDER",
+            "http_status": 409,
+            "payment": duplicate_payment,
+        }, ensure_ascii=False, indent=2))
+        sys.exit(1)
 
     status, error_code = emulate_gateway(payload["order_id"])
     
