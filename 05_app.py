@@ -64,8 +64,8 @@ def validate(payload, active_recipients, existing_payments):
         try:
             amt = float(payload["amount"])
         except (TypeError, ValueError):
-            errors.append(("amount", "VALIDATION_ERROR"))
-        else:
+            errors.append(("amount", "AMOUNT_TYPE_ERROR"))#переименовал ошибку
+        else:            
             if amt <= 0 or amt > 1_000_000:
                 errors.append(("amount", "AMOUNT_OUT_OF_RANGE"))
             if not re.fullmatch(r"\d+(?:\.\d{1,2})?", str(payload["amount"])):
