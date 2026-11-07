@@ -18,19 +18,19 @@
 
 ## Ваша таблица — заполните 11 оставшихся колонок
 
-|Поле|Тип|Обяз.|Ограничение|Пример|Код ошибки|Комментарий|
-|-|-|-|-|-|-|-|
-|order\_id|?|?|?|?|?|?|
-|recipient|?|?|?|?|?|?|
-|purpose|?|?|?|?|?|?|
-|amount|?|?|?|?|?|?|
-|currency|?|?|?|?|?|?|
-|status|?|?|?|?|?|?|
-|error\_code|?|?|?|?|?|?|
-|idempotency\_key|?|?|?|?|?|?|
-|created\_at|?|?|?|?|?|?|
-|confirmed\_at|?|?|?|?|?|?|
-|correlation\_id|?|?|?|?|?|?|
+|Поле| Тип      | Обяз.       | Ограничение                                               | Пример               | Код ошибки           | Комментарий                |
+|-|----------|-------------|-----------------------------------------------------------|----------------------|----------------------|----------------------------|
+|order\_id| string   | да          | ^ord_[0-9]{4}$                              | ord_1001             | INVALID_FORMAT       | Идентификатор заказа       |
+|recipient| string   | да          | ID (recipients.csv), статус ACTIVE                        | clinic_medservice    | RECIPIENT_NOT_FOUND  | Получатель платежа         |
+|purpose| string   | да          | 1-200 сим. без PAN/CVV                                    | Прием педиатра       | INVALID_PURPOSE      | Назначение платежа         |
+|amount| number   | да          | > 0, <= 1000000, 2 знака после точки                      | 1500.00              | AMOUNT_OUT_OF_RANGE  | Сумма платежа              |
+|currency| string   | да          | ISO 4217 (Руб.)                                           | RUB                  | UNSUPPORTED_CURRENCY | Валюта платежа             |
+|status| string   | да (сервер) | enum:<br/>CREATED/PENDING/SUCCESS/DECLINED/ERROR/CANCELED | SUCCESS              | -                    | Текущий статус платежа     |
+|error\_code| string   | нет         | из каталога 08_errors.md                                  | INSUFFICIENT_FUNDS   | -                    | Код ошибки при отказе      |
+|idempotency\_key| string   | да          | 8-64 сим. уникален 24 часа                                | idem_0013            | DUPLICATE_REQUEST    | Ключ идемпотентности       |
+|created\_at| datetime | да (сервер) | ISO 8601                                                  | 2026-11-03T11:01:12Z | -                    | Дата и время создания      |
+|confirmed\_at| datetime | нет         | ISO 8601                                                  | 2026-11-03T11:05:30Z | -                    | Дата и время подтверждения |
+|correlation\_id| string   | да (сервер) | UUID или string                                           | corr_0038            | -                    | Для трассировки в логах    |
 
 ## Критерий приёмки (что проверяет жюри)
 
