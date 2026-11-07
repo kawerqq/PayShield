@@ -2,7 +2,7 @@
     "order_id": "ord_2002",
     "recipient": "dr_ivanov",
     "purpose": "Приём терапевта",
-    "amount": "2500.00",
+    "amount": "2500.05",
     "currency": "RUB",
     "idempotency_key": "test-key-001"
 

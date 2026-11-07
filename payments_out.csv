@@ -6,3 +6,6 @@ pay_demo_1000,ord_1000,dr_ivanov,Приём терапевта,2500.00,RUB,SUCCE
 pay_demo_1000,ord_1000,dr_ivanov,Приём терапевта,2500.00,RUB,SUCCESS,,,2026-11-06T17:29:47+00:00,,
 pay_demo_2000,ord_2000,dr_ivanov,Приём терапевта,2500.00,RUB,SUCCESS,,,2026-11-06T21:29:42+00:00,,
 pay_demo_2001,ord_2001,dr_ivanov,Приём терапевта,2500.00,RUB,CARD_DECLINED,CARD_DECLINED,test-key-001,2026-11-06T22:27:42+00:00,,
+pay_demo_2002,ord_2002,dr_ivanov,Приём терапевта,2500.00,RUB,CARD_DECLINED,CARD_DECLINED,test-key-001,2026-11-07T22:16:05+00:00,,
+pay_demo_2002,ord_2002,dr_ivanov,Приём терапевта,2500.00,RUB,CARD_DECLINED,CARD_DECLINED,test-key-001,2026-11-07T23:19:07+00:00,,
+pay_demo_2002,ord_2002,dr_ivanov,Приём терапевта,2500.00,RUB,CARD_DECLINED,CARD_DECLINED,test-key-001,2026-11-07T23:19:14+00:00,,

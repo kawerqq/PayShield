@@ -20,6 +20,7 @@ import os
 import sys 
 import re
 from datetime import datetime, timezone
+from decimal import Decimal
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 RECIPIENTS_CSV = os.path.join(BASE_DIR, "01_данные", "recipients.csv")
@@ -123,18 +124,32 @@ def load_existing_payments():
         return list(reader)
 
 def check_idempotency(payload, existing_payments):
-    """Найти ранее обработанный запрос по Idempotency-Key."""
+    """Проверить повтор ключа и совпадение данных запроса."""
 
     idempotency_key = payload.get("idempotency_key")
 
     if not idempotency_key:
-        return None
+        return "NEW", None
+
+    fields = ["order_id", "recipient", "purpose", "amount", "currency"]
 
     for existing in existing_payments:
         if existing.get("idempotency_key") == idempotency_key:
-            return existing
 
-    return None
+            for field in fields:
+                if field == "amount":
+                    same = Decimal(str(payload[field])) == Decimal(
+                        str(existing[field])
+                    )
+                else:
+                    same = payload[field] == existing[field]
+
+                if not same:
+                    return "CONFLICT", existing
+
+            return "REPLAY", existing
+
+    return "NEW", None
     
 def append_payment(payment):
     file_is_empty = not os.path.exists(OUT_CSV) or os.path.getsize(OUT_CSV) == 0
@@ -166,7 +181,7 @@ def main():
     active = load_active_recipients()
     existing_payments = load_existing_payments()
     errors, duplicate_payment = validate(payload, active, existing_payments)
-    idempotent_payment = check_idempotency(payload, existing_payments)
+    idempotency_result, idempotent_payment = check_idempotency(payload, existing_payments)
     
     if errors:
         print(json.dumps({
@@ -176,7 +191,16 @@ def main():
         }, ensure_ascii=False, indent=2))
         sys.exit(2)
 
-    if idempotent_payment is not None:
+    if idempotency_result == "CONFLICT":
+        print(json.dumps({
+            "status": "ERROR",
+            "error_code": "IDEMPOTENCY_KEY_CONFLICT",
+            "http_status": 409,
+            "message": "Idempotency-Key уже использован с другими данными"
+    }, ensure_ascii=False, indent=2))
+    sys.exit(1)
+
+    if idempotency_result == "REPLAY":
         print(json.dumps({
             "payment_id": idempotent_payment["payment_id"],
             "status": idempotent_payment["status"],
