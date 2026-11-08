@@ -19,8 +19,10 @@ import json
 import os
 import sys 
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from decimal import Decimal
+
+IDEMPOTENCY_TTL = timedelta(hours=24)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 RECIPIENTS_CSV = os.path.join(BASE_DIR, "01_данные", "recipients.csv")
@@ -37,7 +39,8 @@ FIELDNAMES = [
     "idempotency_key",
     "created_at",
     "confirmed_at",
-    "correlation_id"
+    "correlation_id",
+    "response_json"
 ]
 
 def load_active_recipients():
@@ -123,8 +126,27 @@ def load_existing_payments():
         reader = csv.DictReader(f)
         return list(reader)
 
+def is_key_active(existing):
+    created_at = existing.get("created_at")
+
+    if not created_at:
+        return True
+
+    try:
+        created_at = datetime.fromisoformat(
+            created_at.replace("Z", "+00:00")
+        )
+    except (ValueError, TypeError):
+        return True
+
+    if created_at.tzinfo is None:
+        created_at = created_at.replace(tzinfo=timezone.utc)
+
+    now = datetime.now(timezone.utc)
+
+    return now - created_at < IDEMPOTENCY_TTL
+
 def check_idempotency(payload, existing_payments):
-    """Проверить повтор ключа и совпадение данных запроса."""
 
     idempotency_key = payload.get("idempotency_key")
 
@@ -135,6 +157,9 @@ def check_idempotency(payload, existing_payments):
 
     for existing in existing_payments:
         if existing.get("idempotency_key") == idempotency_key:
+
+            if not is_key_active(existing):
+                continue
 
             for field in fields:
                 if field == "amount":
@@ -150,7 +175,7 @@ def check_idempotency(payload, existing_payments):
             return "REPLAY", existing
 
     return "NEW", None
-    
+
 def append_payment(payment):
     file_is_empty = not os.path.exists(OUT_CSV) or os.path.getsize(OUT_CSV) == 0
 
@@ -181,7 +206,6 @@ def main():
     active = load_active_recipients()
     existing_payments = load_existing_payments()
     errors, duplicate_payment = validate(payload, active, existing_payments)
-    idempotency_result, idempotent_payment = check_idempotency(payload, existing_payments)
     
     if errors:
         print(json.dumps({
@@ -191,23 +215,30 @@ def main():
         }, ensure_ascii=False, indent=2))
         sys.exit(2)
 
+    idempotency_result, idempotent_payment = check_idempotency(payload, existing_payments)
+
     if idempotency_result == "CONFLICT":
         print(json.dumps({
             "status": "ERROR",
             "error_code": "IDEMPOTENCY_KEY_CONFLICT",
             "http_status": 409,
             "message": "Idempotency-Key уже использован с другими данными"
-    }, ensure_ascii=False, indent=2))
-    sys.exit(1)
+        }, ensure_ascii=False, indent=2))
+        sys.exit(1)
 
     if idempotency_result == "REPLAY":
-        print(json.dumps({
-            "payment_id": idempotent_payment["payment_id"],
-            "status": idempotent_payment["status"],
-            "error_code": "DUPLICATE_REQUEST",
-            "http_status": 200,
-            "payment": idempotent_payment,
-        }, ensure_ascii=False, indent=2))
+
+        saved_response = idempotent_payment.get("response_json")
+
+        if saved_response:
+            response = json.loads(saved_response)
+
+            print(json.dumps(
+                response,
+                ensure_ascii=False,
+                indent=2
+            ))
+
         sys.exit(0)
 
     if duplicate_payment is not None:
@@ -242,18 +273,33 @@ def main():
         "created_at": created_at,
         "confirmed_at": "",
         "correlation_id": "",
+        "response_json" : ""
     }
 
-    append_payment(payment)
-
-    
-    print(json.dumps({
+    response = {
         "payment_id": payment_id,
         "status": payment_status,
         "error_code": error_code,
         "http_status": 200,
-        "payment": payment,
-    }, ensure_ascii=False, indent=2))
+        "payment": {
+            key: value
+            for key, value in payment.items()
+            if key != "response_json"
+        }
+    }
+
+    payment["response_json"] = json.dumps(
+        response,
+        ensure_ascii=False
+    )
+
+    append_payment(payment)
+
+    print(json.dumps(
+        response,
+        ensure_ascii=False,
+        indent=2
+    ))
     
     sys.exit(0 if status == "SUCCESS" else (3 if status == "TIMEOUT" else 1))
 

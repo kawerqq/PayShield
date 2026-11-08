@@ -1,9 +1,8 @@
 {
-    "order_id": "ord_2002",
-    "recipient": "dr_ivanov",
-    "purpose": "Приём терапевта",
-    "amount": "2500.05",
+    "order_id": "ord_9876",
+    "recipient": "clinic_medservice",
+    "purpose": "Оплата консультации",
+    "amount": 1500.00,
     "currency": "RUB",
-    "idempotency_key": "test-key-001"
-
+    "idempotency_key": "idem_test_0001"
 }

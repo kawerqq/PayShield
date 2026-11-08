@@ -1,11 +1,12 @@
-payment_id,order_id,recipient,purpose,amount,currency,status,error_code,idempotency_key,created_at,confirmed_at,correlation_id
-pay_demo_1013,ord_1013,dr_ivanov,Приём терапевта,2500.00,RUB,CARD_DECLINED,CARD_DECLINED,,2026-11-06T17:11:47+00:00,,
+payment_id,order_id,recipient,purpose,amount,currency,status,error_code,idempotency_key,created_at,confirmed_at,correlation_id,response_json
+pay_demo_1013,ord_1013,dr_ivanov,Приём терапевта,2500.00,RUB,CARD_DECLINED,CARD_DECLINED,,2026-11-06T17:11:47+00:00,,,
 
 
-pay_demo_1000,ord_1000,dr_ivanov,Приём терапевта,2500.00,RUB,SUCCESS,,,2026-11-06T17:13:10+00:00,,
-pay_demo_1000,ord_1000,dr_ivanov,Приём терапевта,2500.00,RUB,SUCCESS,,,2026-11-06T17:29:47+00:00,,
-pay_demo_2000,ord_2000,dr_ivanov,Приём терапевта,2500.00,RUB,SUCCESS,,,2026-11-06T21:29:42+00:00,,
-pay_demo_2001,ord_2001,dr_ivanov,Приём терапевта,2500.00,RUB,CARD_DECLINED,CARD_DECLINED,test-key-001,2026-11-06T22:27:42+00:00,,
-pay_demo_2002,ord_2002,dr_ivanov,Приём терапевта,2500.00,RUB,CARD_DECLINED,CARD_DECLINED,test-key-001,2026-11-07T22:16:05+00:00,,
-pay_demo_2002,ord_2002,dr_ivanov,Приём терапевта,2500.00,RUB,CARD_DECLINED,CARD_DECLINED,test-key-001,2026-11-07T23:19:07+00:00,,
-pay_demo_2002,ord_2002,dr_ivanov,Приём терапевта,2500.00,RUB,CARD_DECLINED,CARD_DECLINED,test-key-001,2026-11-07T23:19:14+00:00,,
+pay_demo_1000,ord_1000,dr_ivanov,Приём терапевта,2500.00,RUB,SUCCESS,,,2026-11-06T17:13:10+00:00,,,
+pay_demo_1000,ord_1000,dr_ivanov,Приём терапевта,2500.00,RUB,SUCCESS,,,2026-11-06T17:29:47+00:00,,,
+pay_demo_2000,ord_2000,dr_ivanov,Приём терапевта,2500.00,RUB,SUCCESS,,,2026-11-06T21:29:42+00:00,,,
+pay_demo_2001,ord_2001,dr_ivanov,Приём терапевта,2500.00,RUB,CARD_DECLINED,CARD_DECLINED,test-key-001,2026-11-06T22:27:42+00:00,,,
+pay_demo_2002,ord_2002,dr_ivanov,Приём терапевта,2500.00,RUB,CARD_DECLINED,CARD_DECLINED,test-key-001,2026-11-07T22:16:05+00:00,,,
+pay_demo_2002,ord_2002,dr_ivanov,Приём терапевта,2500.00,RUB,CARD_DECLINED,CARD_DECLINED,test-key-001,2026-11-07T23:19:07+00:00,,,
+pay_demo_2002,ord_2002,dr_ivanov,Приём терапевта,2500.00,RUB,CARD_DECLINED,CARD_DECLINED,test-key-001,2026-11-07T23:19:14+00:00,,,
+pay_demo_9876,ord_9876,clinic_medservice,Оплата консультации,1500.0,RUB,SUCCESS,,idem_test_0001,2026-11-08T04:23:58+00:00,,,"{""payment_id"": ""pay_demo_9876"", ""status"": ""SUCCESS"", ""error_code"": null, ""http_status"": 200, ""payment"": {""payment_id"": ""pay_demo_9876"", ""order_id"": ""ord_9876"", ""recipient"": ""clinic_medservice"", ""purpose"": ""Оплата консультации"", ""amount"": 1500.0, ""currency"": ""RUB"", ""status"": ""SUCCESS"", ""error_code"": """", ""idempotency_key"": ""idem_test_0001"", ""created_at"": ""2026-11-08T04:23:58+00:00"", ""confirmed_at"": """", ""correlation_id"": """"}}"
