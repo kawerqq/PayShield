@@ -1,135 +1,316 @@
-# OpenAPI 3.0 — платёжный сервис, кейс 1
-#
-# Как заполнять:
-#   1. Не меняй строки с пометкой "ОБРАЗЕЦ" — это образец.
-#   2. Строки с "TODO" замени на реальное описание.
-#   3. Все 4 метода должны быть описаны: create, confirm, get, cancel.
-#   4. У каждого метода — responses с кодами (201/200/402/404/409/422/504).
-#   5. В примерах используй реальные данные из payments.csv.
-#
-# Проверь после заполнения: файл должен открываться в
-# https://editor.swagger.io/ без ошибок.
-
 openapi: 3.0.3
-
 info:
   title: Med-Service Payment Service
   version: "1.0.0"
-  description: Встраиваемый платёжный сервис для клиники. Шлюз эмулируется.
-
+  description: >
+    Целевой HTTP-контракт встраиваемого платёжного сервиса клиники.
+    Реальный эквайринг заменён детерминированным эмулятором.
 servers:
   - url: http://localhost:8081
+tags:
+  - name: payments
+    description: Операции с платежами
+paths:
+  /health:
+    get:
+      summary: Проверка доступности
+      responses:
+        '200':
+          description: Сервис доступен
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: UP
 
-# ---------- ОБРАЗЕЦ: этот блок не трогать ----------
+  /api/v1/payments:
+    post:
+      tags: [payments]
+      summary: Создать платёж
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentCreate'
+            example:
+              order_id: ord_1001
+              recipient: clinic_medservice
+              purpose: Приём терапевта
+              amount: 2500.00
+              currency: RUB
+      responses:
+        '201':
+          description: Платёж создан, ожидает подтверждения
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentCreated'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/v1/payments/{id}/confirm:
+    post:
+      tags: [payments]
+      summary: Подтвердить платёж и передать его эмулятору шлюза
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PaymentId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentConfirm'
+            example:
+              method: card_token
+              confirm_token: token-issued-to-client
+      responses:
+        '200':
+          description: Платёж успешно обработан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentStatus'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          description: Эмулятор отклонил платёж
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '410':
+          description: Токен подтверждения истёк или уже использован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '504':
+          description: Шлюз не ответил вовремя; платёж остаётся PENDING
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/v1/payments/{id}:
+    get:
+      tags: [payments]
+      summary: Получить состояние платежа
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PaymentId'
+      responses:
+        '200':
+          description: Состояние платежа
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentStatus'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/payments/{id}/cancel:
+    post:
+      tags: [payments]
+      summary: Отменить платёж до подтверждения
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PaymentId'
+      responses:
+        '200':
+          description: Платёж отменён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentStatus'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Платёж уже подтверждён или находится в терминальном состоянии
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
-
+      bearerFormat: JWT
   parameters:
     IdempotencyKey:
       name: Idempotency-Key
       in: header
       required: true
-      schema: {type: string, minLength: 8, maxLength: 64}
-      description: UUID или стабильный ключ; хранится 24 ч
-
+      description: Ключ идемпотентности; срок хранения 24 часа
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 64
+      example: idem_0001
+    PaymentId:
+      name: id
+      in: path
+      required: true
+      description: Идентификатор платежа
+      schema:
+        type: string
+      example: pay_0001
   schemas:
     PaymentCreate:
       type: object
+      additionalProperties: false
       required: [order_id, recipient, purpose, amount, currency]
       properties:
-        order_id: {type: string, minLength: 1, maxLength: 64,
-                   pattern: '^[A-Za-z0-9_\-]+$'}
-        recipient: {type: string, minLength: 1, maxLength: 64}
-        purpose: {type: string, minLength: 1, maxLength: 200}
-        amount: {type: number, format: double, exclusiveMinimum: 0,
-                 maximum: 1000000, multipleOf: 0.01}
-        currency: {type: string, enum: [RUB]}
-
-# ---------- TODO: опиши эти схемы сам ----------
+        order_id:
+          type: string
+          pattern: '^ord_[0-9]{4}$'
+          example: ord_1001
+        recipient:
+          type: string
+          minLength: 1
+          maxLength: 64
+          example: clinic_medservice
+        purpose:
+          type: string
+          minLength: 1
+          maxLength: 200
+          example: Приём терапевта
+          description: Не должен содержать PAN/CVV
+        amount:
+          type: number
+          exclusiveMinimum: 0
+          maximum: 1000000
+          multipleOf: 0.01
+          example: 2500.00
+        currency:
+          type: string
+          enum: [RUB]
     PaymentCreated:
       type: object
+      required: [payment_id, status, confirm_token, expires_in]
       properties:
-        # TODO: payment_id, status, confirm_token, expires_in
-        ?
-
-    PaymentStatus:
-      type: object
-      properties:
-        # TODO: payment_id, status, error_code, amount, currency, history
-        ?
-
+        payment_id:
+          type: string
+          example: pay_0001
+        status:
+          type: string
+          enum: [CREATED]
+        confirm_token:
+          type: string
+          description: Одноразовый токен подтверждения; хранится на сервере только в виде хеша
+        expires_in:
+          type: integer
+          description: Срок действия токена в секундах
+          example: 600
     PaymentConfirm:
       type: object
-      required: [confirm_token]
+      additionalProperties: false
+      required: [method, confirm_token]
       properties:
-        # TODO: confirm_token, method (enum card_token/sms_code/biometric_stub)
-        ?
-
+        method:
+          type: string
+          enum: [card_token, sms_code, biometric_stub]
+        confirm_token:
+          type: string
+          minLength: 1
+    PaymentStatus:
+      type: object
+      required: [payment_id, status]
+      properties:
+        payment_id:
+          type: string
+        status:
+          type: string
+          enum: [CREATED, PENDING, SUCCESS, DECLINED, ERROR, CANCELED]
+        error_code:
+          type: string
+          nullable: true
+        amount:
+          type: number
+        currency:
+          type: string
+          enum: [RUB]
+        correlation_id:
+          type: string
     Error:
       type: object
-      required: [error_code, message]
+      required: [error_code, message, correlation_id]
       properties:
-        # TODO: error_code, message, retryable, details
-        ?
-
-# ---------- paths ----------
-paths:
-  # ---------- ОБРАЗЕЦ: health, не трогать ----------
-  /health:
-    get:
-      summary: Проверка живости
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                properties: {status: {type: string, example: UP}}
-
-  # ---------- TODO: создание платежа ----------
-  /api/v1/payments:
-    post:
-      tags: [payments]
-      summary: TODO — что делает метод
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-      # TODO: security
-      # TODO: requestBody со схемой PaymentCreate + example
-      # TODO: responses 201, 400, 401, 404, 409, 422, 429
-      ?
-
-  # ---------- TODO: подтверждение ----------
-  /api/v1/payments/{id}/confirm:
-    post:
-      tags: [payments]
-      summary: TODO
-      parameters:
-        - {name: id, in: path, required: true, schema: {type: string}}
-        - $ref: '#/components/parameters/IdempotencyKey'
-      # TODO: requestBody PaymentConfirm + example
-      # TODO: responses 200, 402, 410, 422, 504
-      ?
-
-  # ---------- TODO: статус ----------
-  /api/v1/payments/{id}:
-    get:
-      tags: [payments]
-      summary: TODO
-      parameters:
-        - {name: id, in: path, required: true, schema: {type: string}}
-      # TODO: responses 200, 404
-      ?
-
-  # ---------- TODO: отмена ----------
-  /api/v1/payments/{id}/cancel:
-    post:
-      tags: [payments]
-      summary: TODO (только до подтверждения)
-      parameters:
-        - {name: id, in: path, required: true, schema: {type: string}}
-      # TODO: responses 200, 409
-      ?
+        error_code:
+          type: string
+          example: AMOUNT_OUT_OF_RANGE
+        message:
+          type: string
+          example: Сумма должна быть больше 0 и не превышать 1000000
+        correlation_id:
+          type: string
+          example: corr_0038
+        retryable:
+          type: boolean
+          default: false
+        details:
+          type: object
+          additionalProperties: true
+  responses:
+    BadRequest:
+      description: Некорректный JSON или структура запроса
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Требуется авторизация
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Платёж или получатель не найден
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Конфликт ключа идемпотентности или повторный заказ
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ValidationError:
+      description: Ошибка форматно-логического контроля
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
