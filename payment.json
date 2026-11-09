@@ -1,8 +1,8 @@
 {
-    "order_id": "ord_9876",
+    "order_id": "ord_2008",
     "recipient": "clinic_medservice",
     "purpose": "Оплата консультации",
     "amount": 1500.00,
     "currency": "RUB",
-    "idempotency_key": "idem_test_0001"
+    "idempotency_key": "idem_test_0003"
 }

@@ -48,32 +48,84 @@ components:
                  maximum: 1000000, multipleOf: 0.01}
         currency: {type: string, enum: [RUB]}
 
-# ---------- TODO: опиши эти схемы сам ----------
+# ---------- Схемы ответов и подтверждения ----------
     PaymentCreated:
       type: object
+      required: [payment_id, status, confirm_token, expires_in]
       properties:
-        # TODO: payment_id, status, confirm_token, expires_in
-        ?
+        payment_id:
+          type: string
+          example: pay_0001
+        status:
+          type: string
+          enum: [CREATED]
+        confirm_token:
+          type: string
+          description: Токен для подтверждения платежа
+        expires_in:
+          type: integer
+          description: Срок действия токена в секундах
+          example: 600
+        
 
     PaymentStatus:
       type: object
       properties:
-        # TODO: payment_id, status, error_code, amount, currency, history
-        ?
+        payment_id:
+          type: string
+        status:
+          type: string
+          enum: 
+            - CREATED
+            - PENDING
+            - SUCCESS
+            - DECLINED
+            - ERROR
+            - CANCELED
+        error_code:
+          type: string
+          nullable: true
+        amount:
+          type: number
+        currency:
+          type: string
+          enum: [RUB]
+
 
     PaymentConfirm:
       type: object
-      required: [confirm_token]
+      required: [method, confirm_token]
       properties:
-        # TODO: confirm_token, method (enum card_token/sms_code/biometric_stub)
-        ?
+        method:
+          type: string
+          enum: 
+            - card_token
+            - sms_code
+            - biometric_stub
+          description: Способ подтверждения платежа
+        confirm_token:
+          type: string
+          description: Одноразовый токен подтверждения платежа
+      
+        
 
     Error:
       type: object
-      required: [error_code, message]
+      required: [error_code, message, correlation_id]
       properties:
-        # TODO: error_code, message, retryable, details
-        ?
+        error_code:
+          type: string
+          description: Код ошибки
+          example: AMOUNT_OUT_OF_RANGE
+        message:
+          type: string
+          description: Описание ошибки
+          example: Сумма платежа должна быть больше 0
+        correlation_id:
+          type: string
+          description: Идентификатор запроса для поиска ошибки в логах
+          example: corr_0038
+        
 
 # ---------- paths ----------
 paths:
@@ -90,46 +142,229 @@ paths:
                 type: object
                 properties: {status: {type: string, example: UP}}
 
-  # ---------- TODO: создание платежа ----------
+  # ---------- Создание платежа ----------
   /api/v1/payments:
     post:
       tags: [payments]
-      summary: TODO — что делает метод
+      summary: Создание платежа
+
+      security:
+        - bearerAuth: []
+
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
-      # TODO: security
-      # TODO: requestBody со схемой PaymentCreate + example
-      # TODO: responses 201, 400, 401, 404, 409, 422, 429
-      ?
 
-  # ---------- TODO: подтверждение ----------
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentCreate'
+            example:
+              order_id: ord_1001
+              recipient: clinic_medservice
+              purpose: Прием педиатра
+              amount: 1500.00
+              currency: RUB
+
+      responses:
+        '201':
+          description: Платеж создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentCreated'
+
+        '400':
+          description: Неверный запрос
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+        '401':
+          description: Необходима авторизация
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+        '404':
+          description: Получатель не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+        '409':
+          description: Конфликт при создании платежа
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+        '422':
+          description: Ошибка проверки данных
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+        '429':
+          description: Слишком много запросов
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ---------- Подтверждение платежа ----------
   /api/v1/payments/{id}/confirm:
     post:
       tags: [payments]
-      summary: TODO
-      parameters:
-        - {name: id, in: path, required: true, schema: {type: string}}
-        - $ref: '#/components/parameters/IdempotencyKey'
-      # TODO: requestBody PaymentConfirm + example
-      # TODO: responses 200, 402, 410, 422, 504
-      ?
+      summary: Подтверждение платежа
 
-  # ---------- TODO: статус ----------
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Идентификатор платежа
+
+        - $ref: '#/components/parameters/IdempotencyKey'
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentConfirm'
+            example:
+              confirm_token: test_token_123
+              method: card_token
+
+      responses:
+        '200':
+          description: Платеж подтвержден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentStatus'
+
+        '402':
+          description: Платеж отклонен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+        '410':
+          description: Срок действия токена истек
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+        '422':
+          description: Неверный токен или данные подтверждения
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+        '504':
+          description: Эмулятор не ответил вовремя
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ---------- Получение статуса ----------
   /api/v1/payments/{id}:
     get:
       tags: [payments]
-      summary: TODO
-      parameters:
-        - {name: id, in: path, required: true, schema: {type: string}}
-      # TODO: responses 200, 404
-      ?
+      summary: Получение статуса платежа
 
-  # ---------- TODO: отмена ----------
+      security:
+        - bearerAuth: []
+
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Идентификатор платежа
+          schema:
+            type: string
+          example: pay_0001
+
+      responses:
+        '200':
+          description: Информация о платеже
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentStatus'
+
+        '401':
+          description: Необходима авторизация
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+        '404':
+          description: Платеж не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ---------- Отмена платежа ----------
   /api/v1/payments/{id}/cancel:
     post:
       tags: [payments]
-      summary: TODO (только до подтверждения)
+      summary: Отмена платежа
+
+      security:
+        - bearerAuth: []
+
       parameters:
-        - {name: id, in: path, required: true, schema: {type: string}}
-      # TODO: responses 200, 409
-      ?
+        - name: id
+          in: path
+          required: true
+          description: Идентификатор платежа
+          schema:
+            type: string
+          example: pay_0001
+
+      responses:
+        '200':
+          description: Платеж отменен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentStatus'
+
+        '401':
+          description: Необходима авторизация
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+        '404':
+          description: Платеж не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+        '409':
+          description: Платеж уже подтвержден или завершен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'

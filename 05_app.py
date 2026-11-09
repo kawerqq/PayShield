@@ -54,7 +54,7 @@ def load_active_recipients():
     except FileNotFoundError:
         print(f"WARN: {RECIPIENTS_CSV} не найден", file=sys.stderr)
     return active
-
+#
 
 def validate(payload, active_recipients, existing_payments):
     """TODO: реализовать V-3…V-9. Вернуть [(field, code), ...]."""
@@ -101,7 +101,7 @@ def validate(payload, active_recipients, existing_payments):
     # TODO: V-3 (order_id regex), V-4 (currency), V-5 (recipient),
     #       V-6 (purpose), V-7 (2 знака), V-8 (дубль), V-9 (idempotency)
     return errors, duplicate_payment
-
+#
 
 def emulate_gateway(order_id):
     """TODO: 4 сценария. Вернуть (status, error_code)."""
@@ -125,7 +125,7 @@ def load_existing_payments():
     with open(OUT_CSV, "r", newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         return list(reader)
-
+#
 def is_key_active(existing):
     created_at = existing.get("created_at")
 
@@ -152,7 +152,7 @@ def check_idempotency(payload, existing_payments):
 
     if not idempotency_key:
         return "NEW", None
-
+    
     fields = ["order_id", "recipient", "purpose", "amount", "currency"]
 
     for existing in existing_payments:
@@ -175,7 +175,7 @@ def check_idempotency(payload, existing_payments):
             return "REPLAY", existing
 
     return "NEW", None
-
+#
 def append_payment(payment):
     file_is_empty = not os.path.exists(OUT_CSV) or os.path.getsize(OUT_CSV) == 0
 
@@ -206,7 +206,7 @@ def main():
     active = load_active_recipients()
     existing_payments = load_existing_payments()
     errors, duplicate_payment = validate(payload, active, existing_payments)
-    
+#    
     if errors:
         print(json.dumps({
             "status": "ERROR",
@@ -214,9 +214,9 @@ def main():
             "errors": [{"field": f, "code": c} for f, c in errors],
         }, ensure_ascii=False, indent=2))
         sys.exit(2)
-
+#
     idempotency_result, idempotent_payment = check_idempotency(payload, existing_payments)
-
+#
     if idempotency_result == "CONFLICT":
         print(json.dumps({
             "status": "ERROR",
@@ -225,7 +225,7 @@ def main():
             "message": "Idempotency-Key уже использован с другими данными"
         }, ensure_ascii=False, indent=2))
         sys.exit(1)
-
+#
     if idempotency_result == "REPLAY":
 
         saved_response = idempotent_payment.get("response_json")
@@ -240,7 +240,7 @@ def main():
             ))
 
         sys.exit(0)
-
+#
     if duplicate_payment is not None:
         print(json.dumps({
             "status": "ERROR",
@@ -249,7 +249,7 @@ def main():
             "payment": duplicate_payment,
         }, ensure_ascii=False, indent=2))
         sys.exit(1)
-
+#
     status, error_code = emulate_gateway(payload["order_id"])
     
     if status == "TIMEOUT":
