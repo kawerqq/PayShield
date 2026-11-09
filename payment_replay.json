@@ -1,0 +1,8 @@
+{
+  "order_id": "ord_1004",
+  "recipient": "clinic_medservice",
+  "purpose": "Оплата консультации",
+  "amount": "100.00",
+  "currency": "RUB",
+  "idempotency_key": "idem_t1_04"
+}
