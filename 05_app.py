@@ -152,7 +152,7 @@ def validate(
 def is_key_active(payment: dict[str, str]) -> bool:
     created_at = payment.get("created_at", "")
     if not created_at:
-        return True  # безопасная совместимость со старыми строками CSV
+        return True 
     try:
         timestamp = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
     except (ValueError, TypeError):
